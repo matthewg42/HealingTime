@@ -78,6 +78,8 @@ void HealingStepper::setMode(HealingStepper::Mode mode)
     case HealingStepper::CalibrateZero:
         DBLN(F("CalibrateZero)"));
         if (_controlHeartbeat) { HeartBeat.setCustomMode(650, 150); }
+        setMaxSpeed(StepperCalibrateSpeed);
+        setAcceleration(StepperCalibrateAcceleration);
         setCurrentPosition(0);
         moveTo(CalibrateSteps);
         break;
