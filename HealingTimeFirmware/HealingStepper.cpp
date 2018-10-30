@@ -7,7 +7,7 @@
 
 HealingStepper::HealingStepper(uint8_t id, uint8_t interface, uint8_t pin1, uint8_t pin2, uint8_t pin3, uint8_t pin4, bool enable, uint8_t hallPin, bool controlHeartbeat) :
     AccelStepper(interface, pin1, pin2, pin3, pin4, enable),
-    _hallSensor(hallPin),
+    _hallSensor(hallPin, false),
     _homeOffset((id * (sizeof(int32_t) + sizeof(int32_t))) + sizeof(int32_t),
                 0,     // min
                 10000, // max
@@ -46,7 +46,8 @@ void HealingStepper::setMode(HealingStepper::Mode mode)
     switch (_mode) {
     case HealingStepper::Locating:
         DBLN(F("Locating)"));
-        if (_controlHeartbeat) { HeartBeat.setCustomMode(500, 500); }
+        //if (_controlHeartbeat) { HeartBeat.setCustomMode(500, 500); }
+        if (_controlHeartbeat) { HeartBeat.setCustomMode(50, 1500); }
         setMaxSpeed(StepperCalibrateSpeed);
         setAcceleration(StepperCalibrateAcceleration);
         moveTo(CalibrateSteps);
@@ -55,29 +56,32 @@ void HealingStepper::setMode(HealingStepper::Mode mode)
         // at start of homing, we are Hall falling edge
         // so move current + FS - HO
         DBLN(F("Homing)"));
-        if (_controlHeartbeat) { HeartBeat.setCustomMode(500, 500); }
+        //if (_controlHeartbeat) { HeartBeat.setCustomMode(500, 500); }
         moveTo(currentPosition() + _fullSpin.get() - _homeOffset.get());
         break;
     case HealingStepper::Waiting:
         setCurrentPosition(0);
         DBLN(F("Waiting)"));
-        if (_controlHeartbeat) { HeartBeat.setCustomMode(50, 950); }
+        //if (_controlHeartbeat) { HeartBeat.setCustomMode(50, 950); }
         break;
     case HealingStepper::Spinning:
         DBLN(F("Spinning)"));
-        if (_controlHeartbeat) { HeartBeat.setCustomMode(950, 50); }
+        //if (_controlHeartbeat) { HeartBeat.setCustomMode(950, 50); }
         setMaxSpeed(StepperNormalSpeed);
         setAcceleration(StepperNormalAcceleration);
         moveTo(_fullSpin.get());
+        _sensorCount = 0;
         break;
     case HealingStepper::CalibrateWait:
         DBLN(F("CalibrateWait)"));
-        if (_controlHeartbeat) { HeartBeat.setCustomMode(850, 150); }
+        if (_controlHeartbeat) { HeartBeat.setCustomMode(1500, 50); }
+        //if (_controlHeartbeat) { HeartBeat.setCustomMode(850, 150); }
         disableOutputs();
         break;
     case HealingStepper::CalibrateZero:
         DBLN(F("CalibrateZero)"));
-        if (_controlHeartbeat) { HeartBeat.setCustomMode(650, 150); }
+        if (_controlHeartbeat) { HeartBeat.setCustomMode(50, 1500); }
+        //if (_controlHeartbeat) { HeartBeat.setCustomMode(650, 150); }
         setMaxSpeed(StepperCalibrateSpeed);
         setAcceleration(StepperCalibrateAcceleration);
         setCurrentPosition(0);
@@ -86,7 +90,7 @@ void HealingStepper::setMode(HealingStepper::Mode mode)
     case HealingStepper::CalibrateSpin:
         DBLN(F("CalibrateSpin)"));
         _calibrationSpinCount = 0;
-        if (_controlHeartbeat) { HeartBeat.setCustomMode(450, 150); }
+        //if (_controlHeartbeat) { HeartBeat.setCustomMode(450, 150); }
         //moveTo(CalibrateSteps);
         break;
     default:
@@ -172,8 +176,14 @@ void HealingStepper::update()
             int32_t correction = _homeOffset.get() - currentPosition();
             DBLN(correction);
             moveTo(_fullSpin.get() - correction);
+            _sensorCount += 1;
         }
         if (distanceToGo() == 0) {
+            if (_sensorCount == 0) {
+                HeartBeat.setCustomMode(50, 250);
+            } else if (_sensorCount > 1) {
+                HeartBeat.setCustomMode(250, 50);
+            }
             setMode(HealingStepper::Waiting);
         }
         break;

@@ -90,6 +90,7 @@ private:
     bool _prevHall;
     int8_t _calibrationSpinCount;
     bool _controlHeartbeat;
+    int _sensorCount;
 
 };
 
